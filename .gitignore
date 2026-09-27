@@ -6,3 +6,6 @@ output.bak/
 /src/.webpack.js
 .spago
 .psc-ide-port
+java_output/
+classes/
+.spago/
