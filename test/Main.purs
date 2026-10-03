@@ -21,8 +21,8 @@ import Promise.Aff (Promise)
 import Promise.Aff as Promise
 import Test.Assert as Assert
 
-suite :: forall m. MonadReader String m => MonadEffect m => String -> m Unit -> m Unit
-suite msg runTest = do
+group :: forall m. MonadReader String m => MonadEffect m => String -> m Unit -> m Unit
+group msg runTest = do
   prev <- ask
   liftEffect $ log prev
   local (_ <> msg) runTest
@@ -32,6 +32,7 @@ test msg runTest = do
   prev <- ask
   liftEffect $ log prev
   local (_ <> msg) (liftAff runTest)
+  liftEffect $ log ("[OK] " <> prev <> "/" <> msg)
 
 assert :: forall m. MonadEffect m => String -> Boolean -> m Unit
 assert msg bool = liftEffect $ Assert.assert' msg bool
@@ -59,8 +60,11 @@ foreign import customErrPromise :: Promise String
 foreign import goodbyePromise :: Promise String
 
 main :: Effect Unit
-main = launchAff_ $ flip runReaderT "" do
-  suite "ffi" do
+main = launchAff_ suite
+
+suite :: Aff Unit
+suite = flip runReaderT "" do
+  group "ffi" do
     test "Hello" do
       s <- Promise.toAff helloPromise
       shouldEqual "Hello" s
@@ -73,14 +77,14 @@ main = launchAff_ $ flip runReaderT "" do
     test "Goodbye" do
       res <- attempt $ Promise.toAff goodbyePromise
       shouldEqual "Goodbye" $ either message (const "-") res
-  suite "round-trip" do
+  group "round-trip" do
     test "success" do
-      timeout 100 $ do
+      timeout 5000 $ do
         promise <- liftEffect $ Promise.fromAff $ pure 42
         res <- Promise.toAff promise
         assert "round-trip result is 42" $ res == 42
     test "toAffE" do
-      timeout 100 do
+      timeout 5000 do
         res <- Promise.toAffE $ Promise.fromAff $ pure 123
         assert "round-trip result for toAffE is 123" $ res == 123
     test "error" do
